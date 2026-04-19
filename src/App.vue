@@ -29,6 +29,28 @@ watch([currentLessonIdx, currentWordIdx], () => {
   showMeaning.value = false // 切换时默认隐藏意思
 })
 
+// 切换单词时滚动词表，确保当前选中项在列表容器内可见（不影响页面滚动）
+const wordListContainer = ref(null)
+watch(currentWordIdx, async () => {
+  await nextTick()
+  const container = wordListContainer.value
+  if (!container) return
+  const activeEl = container.querySelector('.active-word')
+  if (!activeEl) return
+
+  const containerRect = container.getBoundingClientRect()
+  const activeRect = activeEl.getBoundingClientRect()
+
+  // 元素在容器可视区域上方
+  if (activeRect.top < containerRect.top) {
+    container.scrollTop += activeRect.top - containerRect.top - 10
+  }
+  // 元素在容器可视区域下方
+  else if (activeRect.bottom > containerRect.bottom) {
+    container.scrollTop += activeRect.bottom - containerRect.bottom + 10
+  }
+})
+
 // 计算属性：全局统计
 const totalCourses = computed(() => data.length)
 const totalWords = computed(() => data.reduce((acc, curr) => acc + curr.words.length, 0))
@@ -322,7 +344,7 @@ const scrollModalToTop = () => {
     <!-- 课文词汇小跟班 -->
     <section class="list-section">
       <h2 class="section-title">🎒 本课的单词小伙伴</h2>
-      <div class="list-scroll-container">
+      <div class="list-scroll-container" ref="wordListContainer">
         <div class="word-list-box card-shadow" v-for="(item, idx) in validWordList" :key="idx" 
              :class="{'active-word': idx === currentWordIdx}"
              @click="selectWord(idx)">
