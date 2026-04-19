@@ -6,6 +6,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './', // 使用相对路径，兼容 Live Server 和子目录部署
   server: {
     host: '0.0.0.0', // 允许局域网设备通过 IP 访问
     proxy: {
