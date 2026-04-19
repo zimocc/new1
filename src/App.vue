@@ -407,15 +407,15 @@ html, body {
   align-items: center;
   gap: 6px;
 }
-.box-yellow { background-color: #ffeaa7; }
-.box-pink { background-color: #fab1a0; }
-.box-blue { background-color: #81ecec; }
-.box-green { background-color: #55efc4; }
+.box-yellow { background-color: #FEE685; }
+.box-pink { background-color: #FFD6A7; }
+.box-blue { background-color: #A2F4FD; }
+.box-green { background-color: #96F7E4; }
 
 .stat-icon { font-size: 24px; }
 .stat-content { display: flex; flex-direction: column; white-space: nowrap; }
 .stat-label { font-size: 13px; color: #3d405b; font-weight: 900; }
-.stat-value { font-size: 17px; font-weight: 900; color: #d63031; }
+.stat-value { font-size: 17px; font-weight: 900; color: #3B415A }
 
 
 /* === 中间发音与学习区 === */
@@ -515,9 +515,10 @@ html, body {
   line-height: 26px; height: 26px; white-space: nowrap;
 }
 .word-pos-tag {
-  background-color: #81ecec; color: #00b894;
+  background-color: #A2F4FD; color: #00b894;
   padding: 6px 16px; border-radius: 12px; font-weight: 900;
   border: 3px solid #00b894; font-size: 14px;
+  color: #005F89;
   /* 防止过长（如物主代词英文）折行导致高度暴增 */
   white-space: nowrap; max-width: 95%; overflow: hidden; text-overflow: ellipsis;
 }
