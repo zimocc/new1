@@ -1244,6 +1244,12 @@ export const data = [
                 "partSpeech": "n.",
                 "phoneticSymbol": "/fɔːrk/",
                 "word": "fork"
+            },
+            {
+                "cn": "勺子",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/spuːn/",
+                "word": "spoon"
             }
         ]
     },
@@ -3458,6 +3464,12 @@ export const data = [
                 "partSpeech": "v.",
                 "phoneticSymbol": "/breɪk/",
                 "word": "break"
+            },
+            {
+                "cn": "喧闹声",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/nɔɪz/",
+                "word": "noise"
             }
         ]
     },
@@ -4532,6 +4544,12 @@ export const data = [
                 "partSpeech": "n.",
                 "phoneticSymbol": "/ˈsteɪʃn/",
                 "word": "station"
+            },
+            {
+                "cn": "收票员",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/ˈpɔːtə/",
+                "word": "porter"
             },
             {
                 "cn": "赶上",
@@ -5930,6 +5948,30 @@ export const data = [
                 "partSpeech": "v.",
                 "phoneticSymbol": "/smaɪl/",
                 "word": "smile"
+            },
+            {
+                "cn": "尴尬的，窘迫的",
+                "partSpeech": "a.",
+                "phoneticSymbol": "/ɪmˈbærəst/",
+                "word": "embarrassed"
+            }
+        ]
+    },
+    {
+        "lesson": 142,
+        "name": "Sally's first train ride",
+        "words": [
+            {
+                "cn": "担心，担忧",
+                "partSpeech": "a.",
+                "phoneticSymbol": "/ˈwʌrid/",
+                "word": "worried"
+            },
+            {
+                "cn": "经常地，定期地",
+                "partSpeech": "ad.",
+                "phoneticSymbol": "/ˈreɡjələli/",
+                "word": "regularly"
             }
         ]
     },
