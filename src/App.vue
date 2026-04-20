@@ -8,18 +8,27 @@ const currentWordIdx = ref(0)
 const showMeaning = ref(false)
 const showModal = ref(false)
 const isDictating = ref(false)
+const autoPlayEnabled = ref(false)
 let dictationTimer = null
+let isReadyForAutoPlay = false
 
 // 从 LocalStorage 加载数据
-onMounted(() => {
+onMounted(async () => {
   const savedLesson = localStorage.getItem('NCE_progress_lesson')
   const savedWord = localStorage.getItem('NCE_progress_word')
+  const savedAutoPlay = localStorage.getItem('NCE_auto_play_enabled')
   if (savedLesson !== null) {
     currentLessonIdx.value = parseInt(savedLesson, 10)
   }
   if (savedWord !== null) {
     currentWordIdx.value = Math.min(parseInt(savedWord, 10), Math.max(data[currentLessonIdx.value]?.words.length - 1, 0))
   }
+  if (savedAutoPlay !== null) {
+    autoPlayEnabled.value = savedAutoPlay === 'true'
+  }
+
+  await nextTick()
+  isReadyForAutoPlay = true
 })
 
 // 监听进度变化并保存 LocalStorage
@@ -27,6 +36,10 @@ watch([currentLessonIdx, currentWordIdx], () => {
   localStorage.setItem('NCE_progress_lesson', currentLessonIdx.value)
   localStorage.setItem('NCE_progress_word', currentWordIdx.value)
   showMeaning.value = false // 切换时默认隐藏意思
+})
+
+watch(autoPlayEnabled, (enabled) => {
+  localStorage.setItem('NCE_auto_play_enabled', enabled)
 })
 
 // 切换单词时滚动词表，确保当前选中项在列表容器内可见（不影响页面滚动）
@@ -49,6 +62,16 @@ watch(currentWordIdx, async () => {
   else if (activeRect.bottom > containerRect.bottom) {
     container.scrollTop += activeRect.bottom - containerRect.bottom + 10
   }
+})
+
+watch([currentLessonIdx, currentWordIdx], async () => {
+  if (!isReadyForAutoPlay || isDictating.value || !autoPlayEnabled.value) return
+
+  await nextTick()
+  const currentWordText = currentWordData.value?.word
+  if (!currentWordText) return
+
+  await playSpeech(currentWordText, true)
 })
 
 // 计算属性：全局统计
@@ -143,7 +166,20 @@ const playSpeech = (text, forceOverride = false) => {
 }
 
 const toggleMeaning = () => {
+  if (autoPlayEnabled.value) return
   showMeaning.value = !showMeaning.value
+}
+
+const isMeaningVisible = computed(() => autoPlayEnabled.value || showMeaning.value)
+
+const toggleAutoPlay = async () => {
+  if (isDictating.value) return
+
+  autoPlayEnabled.value = !autoPlayEnabled.value
+  if (!autoPlayEnabled.value) return
+
+  await nextTick()
+  await playSpeech(currentWordData.value?.word, true)
 }
 
 const executeNext = () => {
@@ -191,6 +227,7 @@ const toggleDictation = async () => {
     isPlaying.value = false
     if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
   } else {
+    autoPlayEnabled.value = false
     isDictating.value = true
     const cycleId = ++dictationInstance
     
@@ -298,7 +335,7 @@ const scrollModalToTop = () => {
       <div class="header-tools">
         <button class="cute-btn btn-secondary" @click="openModal">📂 点我选课</button>
         <button class="cute-btn btn-danger" :class="{'btn-danger-active': isDictating}" @click="toggleDictation">
-          {{ isDictating ? '⏹ 停止播放' : '▶️ 自动听写' }}
+          {{ isDictating ? '⏹ 停止听写' : '▶️ 听写' }}
         </button>
       </div>
 
@@ -308,6 +345,11 @@ const scrollModalToTop = () => {
         <div class="tap-zone tap-right" @click="nextWord"></div>
 
         <div class="lesson-badge">第 {{ currentLessonData.lesson }} 关</div>
+        <button class="auto-sound-badge"
+                :class="{'auto-sound-badge-active': autoPlayEnabled}"
+                @click="toggleAutoPlay">
+          {{ autoPlayEnabled ? '🔊 关闭发音' : '🔊 自动发音' }}
+        </button>
         <h2 class="lesson-name">{{ currentLessonData.name || '闯关进行中...' }}</h2>
 
         <!-- 当前单词展示区 -->
@@ -322,8 +364,10 @@ const scrollModalToTop = () => {
           </button>
 
           <!-- 神秘翻译盒子 -->
-          <div class="meaning-box" @click="toggleMeaning" :class="{'revealed': showMeaning}">
-            <span v-if="!showMeaning" class="mystery-text">👆 点击这里，揭开中文秘密！</span>
+          <div class="meaning-box"
+               @click="toggleMeaning"
+               :class="{'revealed': isMeaningVisible, 'meaning-box-locked': autoPlayEnabled}">
+            <span v-if="!isMeaningVisible" class="mystery-text">👆 点击这里，揭开中文秘密！</span>
             <span v-else class="meaning-text">{{ currentWordData.cn }}</span>
           </div>
         </div>
@@ -403,7 +447,7 @@ html, body {
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 15px;
 }
 
 /* 儿童流行风格：粗黑边框、坚实投影 (Neo-brutalism) */
@@ -444,7 +488,7 @@ html, body {
 .learning-section {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 28px;
 }
 .header-tools {
   display: flex;
@@ -513,14 +557,42 @@ html, body {
   border: 4px solid #3d405b; box-shadow: 3px 3px 0 #3d405b;
   border-radius: 8px; z-index: 2; font-size: 18px;
 }
+.auto-sound-badge {
+  position: absolute;
+  top: -15px;
+  right: -10px;
+  background-color: #74b9ff;
+  color: #fff;
+  font-weight: 900;
+  font-size: 18px;
+  font-family: inherit;
+  text-shadow: 1px 1px 0px #0984e3;
+  padding: 5px 20px;
+  transform: rotate(5deg);
+  border: 4px solid #3d405b;
+  box-shadow: -3px 3px 0 #3d405b;
+  border-radius: 8px;
+  z-index: 12;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+.auto-sound-badge:active {
+  transform: rotate(5deg) translateY(3px);
+  box-shadow: -1px 1px 0 #3d405b;
+}
+.auto-sound-badge-active {
+  background-color: #0984e3;
+  text-shadow: 1px 1px 0px #0652a3;
+}
 .lesson-name {
-  margin-top: 15px; font-size: 24px; color: #2d3436;
+  margin-top: 22px; font-size: 24px; color: #2d3436;
   text-decoration: underline; text-decoration-color: #a29bfe; text-decoration-thickness: 6px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding: 0 10px;
 }
 
 .word-display {
   margin-top: 25px;
+  position: relative;
   display: flex; flex-direction: column; align-items: center;
 }
 .word-text {
@@ -560,6 +632,12 @@ html, body {
 .meaning-box.revealed {
   background-color: #fffbdf; border: 4px solid #f39c12;
   box-shadow: 0 4px 0px #f39c12;
+}
+.meaning-box-locked {
+  cursor: default;
+}
+.meaning-box-locked:active {
+  transform: none;
 }
 .mystery-text { font-weight: 900; color: #636e72; font-size: 16px; }
 .meaning-text { font-size: 26px; font-weight: 900; color: #d35400; }
