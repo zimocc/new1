@@ -218,33 +218,69 @@ const getWordStyle = Object.freeze((word) => {
 const isPlaying = ref(false)
 let currentSpeechResolve = null
 let currentSpeechText = ''
-let isUsingYoudao = true
+let currentEngine = 'youdao' // youdao -> google_dy -> baidu -> google(牛津静态兜底)
 
 // 【核心修复】全局维护同一个 Audio 实例。防止手机浏览器由于严格审查自动播放策略而静音定时器内部实例
 const globalAudio = new Audio()
+
+const playNextFallback = () => {
+  if (!currentSpeechText) return;
+  const textToPlay = currentSpeechText;
+  const encoded = encodeURIComponent(textToPlay);
+  
+  if (currentEngine === 'youdao') {
+    console.warn('有道发音不可用，正在自动回退到 Google 动态引擎...');
+    currentEngine = 'google_dy';
+    globalAudio.src = `/api/google_dy?text=${encoded}`;
+    globalAudio.play().catch(handlePlayError);
+  } else if (currentEngine === 'google_dy') {
+    console.warn('Google 动态发音不可用，正在自动回退到百度引擎...');
+    currentEngine = 'baidu';
+    globalAudio.src = `/api/tts?lan=en&text=${encoded}&spd=3`;
+    globalAudio.play().catch(handlePlayError);
+  } else if (currentEngine === 'baidu') {
+    // 当有道、Google 动态和百度都不可用时，如果是纯单词（非短语且不含单引号），才切换到 Google 进行最后兜底
+    const isPureWord = !textToPlay.trim().includes(' ') && !textToPlay.includes("'");
+    if (isPureWord) {
+      console.warn('百度发音不可用，且为纯单词，将在最后尝试回退到 Google 无文件静态引擎...');
+      currentEngine = 'google';
+      globalAudio.src = `/api/google?text=${encoded}`;
+      globalAudio.play().catch(handlePlayError);
+    } else {
+      console.warn('所有发音通道均不可用。');
+      currentSpeechText = '';
+      isPlaying.value = false;
+      if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+    }
+  } else {
+    // google 也失败了
+    console.warn('所有发音通道均不可用。');
+    currentSpeechText = '';
+    isPlaying.value = false;
+    if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+  }
+}
+
+const handlePlayError = (e) => {
+  // e.name === 'NotAllowedError' 意味着用户未进行有效交互，直接终止不进行任何 fallback。
+  if (e && e.name === 'NotAllowedError') {
+     console.warn('发音接口未就绪或被浏览器拦截（需要用户先交互）:', e)
+     currentSpeechText = '';
+     isPlaying.value = false
+     if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+     return;
+  }
+  // 否则进入降级处理
+  playNextFallback();
+}
 
 globalAudio.addEventListener('ended', () => { 
   isPlaying.value = false 
   if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
 })
-globalAudio.addEventListener('error', () => { 
-  // 当有道发音失败（例如网络问题或接口不可用）时降级到百度
-  if (isUsingYoudao && currentSpeechText) {
-    console.warn('有道发音不可用，正在自动回退到百度引擎...');
-    const textToPlay = currentSpeechText;
-    currentSpeechText = ''; // 清空避免死循环
-    isUsingYoudao = false;
-    
-    const encoded = encodeURIComponent(textToPlay);
-    globalAudio.src = `/api/tts?lan=en&text=${encoded}&spd=3`;
-    globalAudio.play().catch(e => {
-       isPlaying.value = false;
-       if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
-    });
-  } else {
-    isPlaying.value = false 
-    if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
-  }
+globalAudio.addEventListener('error', (e) => { 
+  // error 事件表示媒体加载或解码失败，同样触发 fallback
+  handlePlayError(e);
 })
 
 // 播放发音引擎，返回 Promise
@@ -262,28 +298,14 @@ const playSpeech = (text, forceOverride = false) => {
     isPlaying.value = true
     currentSpeechResolve = resolve
     currentSpeechText = text
-    isUsingYoudao = true
     
     const encoded = encodeURIComponent(text)
-    // 优先使用有道翻译 API (type=2 代表美音，1 代英音)
+    
+    // 所有文本发音均优先走 Youdao（已验证其对带有 ' 及短语空格的支持较好）
+    currentEngine = 'youdao'
     globalAudio.src = `/api/youdao?audio=${encoded}&type=2`
-    globalAudio.play().catch(e => {
-      // 捕获播放异常。避免将“用户需要先交互 (NotAllowedError)”等同于服务不可用。
-      if (e.name !== 'NotAllowedError' && isUsingYoudao) {
-         console.warn('播放发生异常，尝试回退百度引擎...', e)
-         isUsingYoudao = false;
-         globalAudio.src = `/api/tts?lan=en&text=${encoded}&spd=3`;
-         globalAudio.play().catch(innerE => {
-             console.warn('回退百度发音依然失败或被浏览器拦截:', innerE)
-             isPlaying.value = false;
-             if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
-         });
-      } else {
-         console.warn('发音接口未就绪或被浏览器拦截（需要用户先交互）:', e)
-         isPlaying.value = false
-         if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
-      }
-    })
+    
+    globalAudio.play().catch(handlePlayError)
   })
 }
 

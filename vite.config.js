@@ -34,6 +34,35 @@ export default defineConfig({
         },
         rewrite: (path) => path.replace(/^\/api\/youdao/, '/dictvoice'),
       },
+      '/api/google': {
+        target: 'https://ssl.gstatic.com',
+        changeOrigin: true,
+        secure: true,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        },
+        rewrite: (path) => {
+           const url = new URL(path, 'http://localhost');
+           const text = url.searchParams.get('text') || '';
+           const word = text.toLowerCase().trim();
+           return `/dictionary/static/sounds/oxford/${encodeURIComponent(word)}--_us_1.mp3`;
+        }
+      },
+      '/api/google_dy': {
+        target: 'https://translate.google.com',
+        changeOrigin: true,
+        secure: true,
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0',
+        },
+        rewrite: (path) => {
+           const url = new URL(path, 'http://localhost');
+           const text = url.searchParams.get('text') || '';
+           return `/translate_tts?ie=UTF-8&client=tw-ob&tl=en-US&q=${encodeURIComponent(text)}`;
+        }
+      },
     },
   },
   plugins: [
