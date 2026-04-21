@@ -7,6 +7,7 @@ const currentLessonIdx = ref(0)
 const currentWordIdx = ref(0)
 const showMeaning = ref(false)
 const showModal = ref(false)
+const showHelpModal = ref(false)
 const isDictating = ref(false)
 const autoPlayEnabled = ref(false)
 let dictationTimer = null
@@ -17,6 +18,8 @@ onMounted(async () => {
   const savedLesson = localStorage.getItem('NCE_progress_lesson')
   const savedWord = localStorage.getItem('NCE_progress_word')
   const savedAutoPlay = localStorage.getItem('NCE_auto_play_enabled')
+  const savedHelpShown = localStorage.getItem('NCE_help_shown')
+  
   if (savedLesson !== null) {
     currentLessonIdx.value = parseInt(savedLesson, 10)
   }
@@ -25,6 +28,9 @@ onMounted(async () => {
   }
   if (savedAutoPlay !== null) {
     autoPlayEnabled.value = savedAutoPlay === 'true'
+  }
+  if (!savedHelpShown) {
+    showHelpModal.value = true
   }
 
   await nextTick()
@@ -40,6 +46,12 @@ watch([currentLessonIdx, currentWordIdx], () => {
 
 watch(autoPlayEnabled, (enabled) => {
   localStorage.setItem('NCE_auto_play_enabled', enabled)
+})
+
+watch(showHelpModal, (visible) => {
+  if (!visible) {
+    localStorage.setItem('NCE_help_shown', 'true')
+  }
 })
 
 // 切换单词时滚动词表，确保当前选中项在列表容器内可见（不影响页面滚动）
@@ -301,6 +313,8 @@ const scrollModalToTop = () => {
     <!-- 头部可爱统计板块 -->
     <header class="stats-grid">
       <div class="stat-box box-yellow">
+        <!-- 玩法说明按钮 -->
+        <button class="cute-btn help-btn" @click="showHelpModal = true">❕</button>
         <span class="stat-icon">📖</span>
         <div class="stat-content">
           <span class="stat-label">当前教材</span>
@@ -411,6 +425,59 @@ const scrollModalToTop = () => {
         </div>
       </div>
     </div>
+
+    <!-- 玩法说明浮层 -->
+    <div class="modal-overlay" v-if="showHelpModal" @click.self="showHelpModal = false">
+      <div class="modal-content card-shadow help-modal">
+        <div class="modal-header">
+          <h3>💡 应用使用说明</h3>
+          <button class="cute-btn btn-danger close-btn" @click="showHelpModal = false">✖</button>
+        </div>
+        <div class="modal-list help-content">
+          
+          <div class="help-item">
+            <h4>👉 快速切换单词</h4>
+            <div class="help-visual">
+              <div class="demo-card">
+                <div class="demo-tap-left">点击<br>上一个</div>
+                <div class="demo-tap-right">点击<br>下一个</div>
+                <div class="demo-word">单词卡片区</div>
+              </div>
+            </div>
+            <p class="help-desc">在单词卡片的左侧/右侧隐形区域，可快速切换上一个/下一个单词。</p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <span class="lesson-badge demo-static-badge" style="transform: rotate(-3deg) !important;">📂 第 X 关</span>
+            </div>
+            <p class="help-desc">想要挑战其他关卡？点击此标签即可打开关卡列表，自由选择你要学习的内容。</p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <span class="auto-sound-badge demo-static-badge">🔊 自动发音</span>
+            </div>
+            <p class="help-desc">
+              1. 切换单词后将<strong>自动朗读</strong>此单词。<br>
+              2. 中文释义将<strong>直接展示</strong>，不再隐藏。
+            </p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <button class="cute-btn btn-danger demo-static-btn">▶️ 听写</button>
+            </div>
+            <p class="help-desc">
+              每个单词会<strong>朗读3遍</strong>（每遍间隔2秒）。<br>
+              随后中场休息<strong>5秒</strong>后进入下一个单词的循环，适合拿出纸笔一起听写。
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -454,6 +521,7 @@ html, body {
   gap: 15px;
 }
 .stat-box {
+  position: relative;
   border: 4px solid #3d405b;
   border-radius: 16px;
   box-shadow: 0 4px 0 #3d405b;
@@ -733,5 +801,122 @@ html, body {
 .active-lesson {
   border-color: #3d405b; background-color: #74b9ff; color: #fff;
   box-shadow: 0 4px 0 #3d405b;
+}
+
+/* === 帮助说明按钮与浮层 === */
+.help-btn {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  z-index: 50;
+  background-color: #74b9ff;
+  color: #fff;
+  box-shadow: 2px 2px 0 #3d405b;
+  border-width: 3px;
+}
+.help-btn:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 0 0 #3d405b !important;
+}
+
+.help-modal { max-width: 500px; }
+.help-content { 
+  padding: 20px; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 15px; 
+  text-align: left; 
+  background: #fff;
+  overflow-y: auto;
+}
+.help-item {
+  border: 4px solid #dfe6e9;
+  border-radius: 12px;
+  padding: 15px;
+  background-color: #f8fcfd;
+}
+.help-item h4 { 
+  margin: 0 0 10px 0; 
+  color: #3d405b; 
+  font-size: 18px; 
+}
+.help-desc { 
+  margin: 0; 
+  color: #2d3436; 
+  font-size: 15px; 
+  line-height: 1.6; 
+  font-weight: bold; 
+}
+
+.help-visual {
+  margin-bottom: 10px;
+}
+.demo-card { 
+  border: 4px solid #3d405b; 
+  border-radius: 12px; 
+  height: 80px; 
+  display: flex; 
+  position: relative; 
+  background: #ffffff; 
+  justify-content: center; 
+  align-items: center;
+  overflow: hidden;
+}
+.demo-tap-left, .demo-tap-right {
+  position: absolute; 
+  top: 0; 
+  bottom: 0; 
+  width: 30%; 
+  background: rgba(255, 118, 117, 0.15); 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  font-size: 13px; 
+  font-weight: 900; 
+  text-align: center; 
+  color: #d63031;
+}
+.demo-tap-left { 
+  left: 0; 
+  border-right: 4px dashed #ff7675; 
+}
+.demo-tap-right { 
+  right: 0; 
+  border-left: 4px dashed #ff7675; 
+}
+.demo-word { 
+  font-weight: 900; 
+  color: #b2bec3; 
+  font-size: 16px; 
+}
+
+.demo-btn-wrap {
+  margin-bottom: 12px;
+  margin-top: 5px;
+  margin-left: 5px;
+}
+.demo-static-badge {
+  position: relative !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: 0 !important;
+  display: inline-block;
+  pointer-events: none;
+}
+.demo-static-btn {
+  display: inline-block !important;
+  flex: none !important;
+  width: auto !important;
+  padding: 8px 25px !important;
+  pointer-events: none;
+  margin: 0;
 }
 </style>
