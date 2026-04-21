@@ -314,7 +314,7 @@ const scrollModalToTop = () => {
     <header class="stats-grid">
       <div class="stat-box box-yellow">
         <!-- 玩法说明按钮 -->
-        <button class="cute-btn help-btn" @click="showHelpModal = true">❕</button>
+        <button class="cute-btn help-btn" @click="showHelpModal = true" style="color: #000; font-size: 22px; padding: 5px 15px;">!</button>
         <span class="stat-icon">📖</span>
         <div class="stat-content">
           <span class="stat-label">当前教材</span>
@@ -325,14 +325,14 @@ const scrollModalToTop = () => {
         {{ isDictating ? '⏹ 停止听写' : '▶️ 听写' }}
       </button>
       <div class="stat-box box-pink">
-        <span class="stat-icon">🌟</span>
+        <span class="stat-icon">📚</span>
         <div class="stat-content">
            <span class="stat-label">课程/词汇</span>
            <span class="stat-value">{{ totalCourses }}课/{{ totalWords }}词</span>
         </div>
       </div>
       <div class="stat-box box-green">
-        <span class="stat-icon">🚀</span>
+        <span class="stat-icon">🐱</span>
         <div class="stat-content">
            <span class="stat-label">本猫进度</span>
            <span class="stat-value">{{ progressStr }}</span>
