@@ -307,18 +307,14 @@ const scrollModalToTop = () => {
           <span class="stat-value">新概念</span>
         </div>
       </div>
+      <button class="cute-btn btn-danger dictation-btn" :class="{'btn-danger-active': isDictating}" @click="toggleDictation">
+        {{ isDictating ? '⏹ 停止听写' : '▶️ 听写' }}
+      </button>
       <div class="stat-box box-pink">
         <span class="stat-icon">🌟</span>
         <div class="stat-content">
-           <span class="stat-label">总课程数</span>
-           <span class="stat-value">{{ totalCourses }}</span>
-        </div>
-      </div>
-      <div class="stat-box box-blue">
-        <span class="stat-icon">📝</span>
-        <div class="stat-content">
-           <span class="stat-label">词汇总数</span>
-           <span class="stat-value">{{ totalWords }}</span>
+           <span class="stat-label">课程/词汇</span>
+           <span class="stat-value">{{ totalCourses }}课/{{ totalWords }}词</span>
         </div>
       </div>
       <div class="stat-box box-green">
@@ -332,19 +328,12 @@ const scrollModalToTop = () => {
 
     <!-- 学习主舞台 -->
     <main class="learning-section">
-      <div class="header-tools">
-        <button class="cute-btn btn-secondary" @click="openModal">📂 点我选课</button>
-        <button class="cute-btn btn-danger" :class="{'btn-danger-active': isDictating}" @click="toggleDictation">
-          {{ isDictating ? '⏹ 停止听写' : '▶️ 听写' }}
-        </button>
-      </div>
-
       <div class="main-card card-shadow">
         <!-- 左侧/右侧隐形点击区 -->
         <div class="tap-zone tap-left" @click="prevWord"></div>
         <div class="tap-zone tap-right" @click="nextWord"></div>
 
-        <div class="lesson-badge">第 {{ currentLessonData.lesson }} 关</div>
+        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson }} 关</div>
         <button class="auto-sound-badge"
                 :class="{'auto-sound-badge-active': autoPlayEnabled}"
                 @click="toggleAutoPlay">
@@ -490,12 +479,6 @@ html, body {
   flex-direction: column;
   gap: 28px;
 }
-.header-tools {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-}
-
 /* 所有的按钮使用类似糖果的质感 */
 .cute-btn {
   font-family: inherit;
@@ -530,6 +513,12 @@ html, body {
   box-shadow: 0 0px 0 #3d405b !important;
   transform: translateY(5px);
 }
+.dictation-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
 .btn-action {
   background-color: #a29bfe; color: #fff; text-shadow: 1px 1px 0px #6c5ce7;
   box-shadow: 0 5px 0 #3d405b;
@@ -545,6 +534,7 @@ html, body {
 
 /* 主展示卡片 */
 .main-card {
+  margin-top: 15px;
   padding: 30px 20px 20px 20px;
   text-align: center;
   position: relative;
@@ -555,7 +545,15 @@ html, body {
   background-color: #ffeaa7; color: #d35400; font-weight: 900;
   padding: 5px 25px; transform: rotate(-5deg);
   border: 4px solid #3d405b; box-shadow: 3px 3px 0 #3d405b;
-  border-radius: 8px; z-index: 2; font-size: 18px;
+  border-radius: 8px; z-index: 12; font-size: 18px;
+}
+.clickable-badge {
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+.clickable-badge:active {
+  transform: rotate(-5deg) translateY(3px);
+  box-shadow: 1px 1px 0 #3d405b;
 }
 .auto-sound-badge {
   position: absolute;
