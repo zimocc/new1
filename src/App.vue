@@ -310,6 +310,11 @@ const scrollModalToTop = () => {
 <template>
   <div class="kid-app" v-if="data && data.length">
     
+    <!-- 作者信息 -->
+    <div class="author-info">
+      <span class="author-text">✍️ by 瑾恒/瑾言爸爸</span>
+    </div>
+
     <!-- 头部可爱统计板块 -->
     <header class="stats-grid">
       <div class="stat-box box-yellow">
@@ -500,11 +505,33 @@ html, body {
 .kid-app {
   max-width: 600px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 25px 20px 20px 20px;
   display: flex;
   flex-direction: column;
   gap: 15px;
+  position: relative;
 }
+
+/* === 作者信息标签 === */
+.author-info {
+  position: absolute;
+  top: 0;
+  right: 30px;
+  z-index: 10;
+}
+.author-text {
+  display: inline-block;
+  background-color: #fff;
+  color: #3d405b;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 900;
+  border: 2px solid #3d405b;
+  box-shadow: 1px 1px 0 #3d405b;
+}
+
 
 /* 儿童流行风格：粗黑边框、坚实投影 (Neo-brutalism) */
 .card-shadow {
