@@ -22,6 +22,18 @@ export default defineConfig({
         },
         rewrite: (path) => path.replace(/^\/api\/tts/, '/gettts'),
       },
+      '/api/youdao': {
+        target: 'https://dict.youdao.com',
+        changeOrigin: true,
+        secure: true,
+        headers: {
+          Referer: 'https://dict.youdao.com/',
+          Origin: 'https://dict.youdao.com',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        },
+        rewrite: (path) => path.replace(/^\/api\/youdao/, '/dictvoice'),
+      },
     },
   },
   plugins: [

@@ -217,6 +217,8 @@ const getWordStyle = Object.freeze((word) => {
 // 播放状态控制器
 const isPlaying = ref(false)
 let currentSpeechResolve = null
+let currentSpeechText = ''
+let isUsingYoudao = true
 
 // 【核心修复】全局维护同一个 Audio 实例。防止手机浏览器由于严格审查自动播放策略而静音定时器内部实例
 const globalAudio = new Audio()
@@ -226,11 +228,26 @@ globalAudio.addEventListener('ended', () => {
   if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
 })
 globalAudio.addEventListener('error', () => { 
-  isPlaying.value = false 
-  if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+  // 当有道发音失败（例如网络问题或接口不可用）时降级到百度
+  if (isUsingYoudao && currentSpeechText) {
+    console.warn('有道发音不可用，正在自动回退到百度引擎...');
+    const textToPlay = currentSpeechText;
+    currentSpeechText = ''; // 清空避免死循环
+    isUsingYoudao = false;
+    
+    const encoded = encodeURIComponent(textToPlay);
+    globalAudio.src = `/api/tts?lan=en&text=${encoded}&spd=3`;
+    globalAudio.play().catch(e => {
+       isPlaying.value = false;
+       if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+    });
+  } else {
+    isPlaying.value = false 
+    if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+  }
 })
 
-// 播放发音引擎（走 /api_tts 代理给百度语音），返回 Promise
+// 播放发音引擎，返回 Promise
 const playSpeech = (text, forceOverride = false) => {
   return new Promise((resolve) => {
     if (!text) return resolve()
@@ -244,12 +261,28 @@ const playSpeech = (text, forceOverride = false) => {
 
     isPlaying.value = true
     currentSpeechResolve = resolve
+    currentSpeechText = text
+    isUsingYoudao = true
+    
     const encoded = encodeURIComponent(text)
-    globalAudio.src = `/api/tts?lan=en&text=${encoded}&spd=3`
+    // 优先使用有道翻译 API (type=2 代表美音，1 代英音)
+    globalAudio.src = `/api/youdao?audio=${encoded}&type=2`
     globalAudio.play().catch(e => {
-      console.warn('发音接口未就绪或被浏览器拦截（需要用户先交互）:', e)
-      isPlaying.value = false
-      if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+      // 捕获播放异常。避免将“用户需要先交互 (NotAllowedError)”等同于服务不可用。
+      if (e.name !== 'NotAllowedError' && isUsingYoudao) {
+         console.warn('播放发生异常，尝试回退百度引擎...', e)
+         isUsingYoudao = false;
+         globalAudio.src = `/api/tts?lan=en&text=${encoded}&spd=3`;
+         globalAudio.play().catch(innerE => {
+             console.warn('回退百度发音依然失败或被浏览器拦截:', innerE)
+             isPlaying.value = false;
+             if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+         });
+      } else {
+         console.warn('发音接口未就绪或被浏览器拦截（需要用户先交互）:', e)
+         isPlaying.value = false
+         if (currentSpeechResolve) { currentSpeechResolve(); currentSpeechResolve = null; }
+      }
     })
   })
 }
