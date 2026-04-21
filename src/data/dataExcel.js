@@ -1684,6 +1684,12 @@ export const data = [
                 "word": "after"
             },
             {
+                "cn": "横过,穿过",
+                "partSpeech": "prep.",
+                "phoneticSymbol": "/əˈkrɔːs/",
+                "word": "across"
+            },
+            {
                 "cn": "猫",
                 "partSpeech": "n.",
                 "phoneticSymbol": "/kæt/",
@@ -1976,12 +1982,6 @@ export const data = [
                 "partSpeech": "v.",
                 "phoneticSymbol": "/swɪm/",
                 "word": "swim"
-            },
-            {
-                "cn": "横过",
-                "partSpeech": "prep.",
-                "phoneticSymbol": "/əˈkrɔːs/",
-                "word": "across"
             },
             {
                 "cn": "大楼，建筑物",
@@ -3054,8 +3054,8 @@ export const data = [
             {
                 "cn": "韩国",
                 "partSpeech": "n.",
-                "phoneticSymbol": "/kəˈriːə/",
-                "word": "Korea"
+                "phoneticSymbol": "/saʊθ kəˈriːə/",
+                "word": "South Korea"
             },
             {
                 "cn": "波兰人",
@@ -3536,6 +3536,12 @@ export const data = [
                 "partSpeech": "pron.",
                 "phoneticSymbol": "/ɑːrˈselvz/",
                 "word": "ourselves"
+            },
+            {
+                "cn": "妈妈",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/mʌm/",
+                "word": "mum"
             }
         ]
     },
@@ -3762,6 +3768,24 @@ export const data = [
         ]
     },
     {
+        "lesson": 70,
+        "name": "When were they there?",
+        "words": [
+            {
+                "cn": "文具商",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/ˈsteɪʃənər/",
+                "word": "staioner"
+            },
+            {
+                "cn": "丹麦",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/ˈdenmɑːrk/",
+                "word": "Denmark"
+            }
+        ]
+    },
+    {
         "lesson": 71,
         "name": "He's awful!",
         "words": [
@@ -3956,12 +3980,6 @@ export const data = [
                 "partSpeech": "n.",
                 "phoneticSymbol": "/per/",
                 "word": "pair"
-            },
-            {
-                "cn": "一双，一对",
-                "partSpeech": "phrase",
-                "phoneticSymbol": "/ə per ʌv/",
-                "word": "a pair of"
             },
             {
                 "cn": "（服装的）流行式样",
@@ -5008,16 +5026,16 @@ export const data = [
                 "word": "carry"
             },
             {
-                "cn": "改正，纠正",
-                "partSpeech": "v.",
-                "phoneticSymbol": "/kəˈrekt/",
-                "word": "correct"
-            },
-            {
                 "cn": "保存，保留",
                 "partSpeech": "v.",
                 "phoneticSymbol": "/kiːp/",
                 "word": "keep"
+            },
+            {
+                "cn": "改正，纠正",
+                "partSpeech": "v.",
+                "phoneticSymbol": "/kəˈrekt/",
+                "word": "correct"
             }
         ]
     },
@@ -5860,16 +5878,16 @@ export const data = [
                 "word": "extra"
             },
             {
-                "cn": "工程师",
-                "partSpeech": "n.",
-                "phoneticSymbol": "/ˌendʒɪˈnɪr/",
-                "word": "engineer"
-            },
-            {
                 "cn": "海外的，国外的",
                 "partSpeech": "adj.",
                 "phoneticSymbol": "/ˌoʊvərˈsiːz/",
                 "word": "overseas"
+            },
+            {
+                "cn": "工程师",
+                "partSpeech": "n.",
+                "phoneticSymbol": "/ˌendʒɪˈnɪr/",
+                "word": "engineer"
             },
             {
                 "cn": "工程",
@@ -5969,7 +5987,7 @@ export const data = [
             },
             {
                 "cn": "尴尬的，窘迫的",
-                "partSpeech": "a.",
+                "partSpeech": "adj.",
                 "phoneticSymbol": "/ɪmˈbærəst/",
                 "word": "embarrassed"
             }
@@ -5981,13 +5999,13 @@ export const data = [
         "words": [
             {
                 "cn": "担心，担忧",
-                "partSpeech": "a.",
+                "partSpeech": "adj.",
                 "phoneticSymbol": "/ˈwʌrid/",
                 "word": "worried"
             },
             {
                 "cn": "经常地，定期地",
-                "partSpeech": "ad.",
+                "partSpeech": "adv.",
                 "phoneticSymbol": "/ˈreɡjələli/",
                 "word": "regularly"
             }
