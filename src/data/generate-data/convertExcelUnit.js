@@ -4,18 +4,19 @@ import * as xlsx from 'xlsx';
 
 /**
  * 读取指定目录下的 .xlsx 文件，并将其内容转换成和原需求一致的 JSON 格式数据
+ * 每个 .xlsx 文件将单独生成一个同名的 .js 文件
  * @param {string} inputDir 指定的主目录
- * @param {string} outputFile 输出数据的目标 JS 文件路径
+ * @param {string} outputDir 输出目录，未传则默认和 inputDir 相同
  */
-export function processExcelFiles(inputDir, outputFile) {
+export function processExcelFiles(inputDir, outputDir) {
+    outputDir = outputDir || inputDir;
     // 获取指定目录下所有的 .xlsx 文件并按照顺序排序
     const files = fs.readdirSync(inputDir)
         .filter(file => file.endsWith('.xlsx') && !file.startsWith('~$'))
         .sort();
 
-    let allLessonsMap = new Map();
-
     for (const file of files) {
+        let allLessonsMap = new Map();
         const filePath = path.join(inputDir, file);
         
         // 兼容 ES Module 导入情况
@@ -64,7 +65,7 @@ export function processExcelFiles(inputDir, outputFile) {
                 // 如果章节尚不存在字典中，则进行初始化
                 if (!allLessonsMap.has(lessonNum)) {
                     allLessonsMap.set(lessonNum, {
-                        lesson: lessonNum,
+                        unit: lessonNum,
                         name: nameStr,
                         words: []
                     });
@@ -81,29 +82,30 @@ export function processExcelFiles(inputDir, outputFile) {
                 }
             }
         }
+
+        // 转换为数组并重新按照章节数字排序
+        const allLessons = Array.from(allLessonsMap.values()).sort((a,b) => {
+            if (typeof a.lesson === 'number' && typeof b.lesson === 'number') {
+                return a.lesson - b.lesson;
+            }
+            return 0;
+        });
+
+        // 格式化输出为 js 文件格式，并导出 data
+        const outputFileName = file.replace(/\.xlsx$/, '.js');
+        const outputFile = path.join(outputDir, outputFileName);
+        const fileContent = `export const data = ${JSON.stringify(allLessons, null, 4)};\n\nexport default data;\n`;
+
+        fs.writeFileSync(outputFile, fileContent, 'utf-8');
+        console.log(`处理完成！${file} 共生成 ${allLessons.length} 个章节的数据，并输出至：${outputFile}`);
     }
-
-    // 转换为数组并重新按照章节数字排序
-    const allLessons = Array.from(allLessonsMap.values()).sort((a,b) => {
-        if (typeof a.lesson === 'number' && typeof b.lesson === 'number') {
-            return a.lesson - b.lesson;
-        }
-        return 0;
-    });
-
-    // 格式化输出为 js 文件格式，并导出 data
-    const fileContent = `export const data = ${JSON.stringify(allLessons, null, 4)};\n\nexport default data;\n`;
-
-    fs.writeFileSync(outputFile, fileContent, 'utf-8');
-    console.log(`处理完成！共生成 ${allLessons.length} 个章节的数据，并输出至：${outputFile}`);
 }
 
-// 自动执行转换方法 (读取 src/data 目录下的 xlsx，然后输出为 dataExcel.js )
-const targetDir = path.resolve('src/data');
-const outPath = path.resolve('src/data/dataExcel.js');
+// 自动执行转换方法 (读取 src/data 目录下的 xlsx，然后输出为同名的 js 文件)
+const targetDir = path.resolve('src/data/generate-data');
 
 try {
-    processExcelFiles(targetDir, outPath);
+    processExcelFiles(targetDir);
 } catch(err) {
     console.error("生成出错：", err);
 }

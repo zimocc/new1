@@ -1,31 +1,73 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { data } from './data/data.js'
+import { data as nce1 } from './data/nce1.js'
+import { data as p3A } from './data/3A.js'
+import { data as p3B } from './data/3B.js'
+import { data as ns1A } from './data/1Ans.js'
+import { data as ns1B } from './data/1Bns.js'
+
+const textbooks = [
+  { id: '1Ans', name: '一年级上册(新启航)', type: 'primary', data: ns1A },
+  { id: '1Bns', name: '一年级下册(新启航)', type: 'primary', data: ns1B },
+  { id: '3A', name: '三年级上册(人教PEP)', type: 'primary', data: p3A },
+  { id: '3B', name: '三年级下册(人教PEP)', type: 'primary', data: p3B },
+  { id: 'nce1', name: '新概念一册', type: 'nce', data: nce1 }
+]
 
 // 应用状态
+const currentTextbookId = ref('1Ans')
+const currentTextbook = computed(() => textbooks.find(t => t.id === currentTextbookId.value) || textbooks[0])
+const currentData = computed(() => currentTextbook.value.data)
+
 const currentLessonIdx = ref(0)
 const currentWordIdx = ref(0)
 const showMeaning = ref(false)
 const showModal = ref(false)
+const showTextbookModal = ref(false)
 const showHelpModal = ref(false)
 const isDictating = ref(false)
 const autoPlayEnabled = ref(false)
 let dictationTimer = null
 let isReadyForAutoPlay = false
 
-// 从 LocalStorage 加载数据
-onMounted(async () => {
-  const savedLesson = localStorage.getItem('NCE_progress_lesson')
-  const savedWord = localStorage.getItem('NCE_progress_word')
-  const savedAutoPlay = localStorage.getItem('NCE_auto_play_enabled')
-  const savedHelpShown = localStorage.getItem('NCE_help_shown')
+const loadProgress = () => {
+  const tbId = currentTextbookId.value
+  const savedLesson = localStorage.getItem(`${tbId}_progress_lesson`)
+  const savedWord = localStorage.getItem(`${tbId}_progress_word`)
   
   if (savedLesson !== null) {
     currentLessonIdx.value = parseInt(savedLesson, 10)
+  } else {
+    currentLessonIdx.value = 0
   }
+  
   if (savedWord !== null) {
-    currentWordIdx.value = Math.min(parseInt(savedWord, 10), Math.max(data[currentLessonIdx.value]?.words.length - 1, 0))
+    currentWordIdx.value = parseInt(savedWord, 10)
+  } else {
+    currentWordIdx.value = 0
   }
+
+  // bounds check
+  if (currentLessonIdx.value >= currentData.value.length) {
+    currentLessonIdx.value = 0
+  }
+  if (currentData.value[currentLessonIdx.value]) {
+    currentWordIdx.value = Math.min(currentWordIdx.value, Math.max(currentData.value[currentLessonIdx.value].words.length - 1, 0))
+  }
+}
+
+// 从 LocalStorage 加载数据
+onMounted(async () => {
+  const savedTb = localStorage.getItem('current_textbook')
+  if (savedTb && textbooks.find(t => t.id === savedTb)) {
+    currentTextbookId.value = savedTb
+  }
+
+  const savedAutoPlay = localStorage.getItem('auto_play_enabled')
+  const savedHelpShown = localStorage.getItem('help_shown')
+
+  loadProgress()
+  
   if (savedAutoPlay !== null) {
     autoPlayEnabled.value = savedAutoPlay === 'true'
   }
@@ -37,20 +79,28 @@ onMounted(async () => {
   isReadyForAutoPlay = true
 })
 
+watch(currentTextbookId, (newId) => {
+  localStorage.setItem('current_textbook', newId)
+  loadProgress()
+  showMeaning.value = false
+  if (isDictating.value) toggleDictation()
+})
+
 // 监听进度变化并保存 LocalStorage
 watch([currentLessonIdx, currentWordIdx], () => {
-  localStorage.setItem('NCE_progress_lesson', currentLessonIdx.value)
-  localStorage.setItem('NCE_progress_word', currentWordIdx.value)
+  const tbId = currentTextbookId.value
+  localStorage.setItem(`${tbId}_progress_lesson`, currentLessonIdx.value)
+  localStorage.setItem(`${tbId}_progress_word`, currentWordIdx.value)
   showMeaning.value = false // 切换时默认隐藏意思
 })
 
 watch(autoPlayEnabled, (enabled) => {
-  localStorage.setItem('NCE_auto_play_enabled', enabled)
+  localStorage.setItem('auto_play_enabled', enabled)
 })
 
 watch(showHelpModal, (visible) => {
   if (!visible) {
-    localStorage.setItem('NCE_help_shown', 'true')
+    localStorage.setItem('help_shown', 'true')
   }
 })
 
@@ -87,14 +137,14 @@ watch([currentLessonIdx, currentWordIdx], async () => {
 })
 
 // 计算属性：全局统计
-const totalCourses = computed(() => data.length)
-const totalWords = computed(() => data.reduce((acc, curr) => acc + curr.words.length, 0))
+const totalCourses = computed(() => currentData.value.length)
+const totalWords = computed(() => currentData.value.reduce((acc, curr) => acc + curr.words.length, 0))
 
 // 计算当前到底学习了多少词，以估算总进度
 const calculateProgressWords = () => {
   let count = 0
   for (let i = 0; i < currentLessonIdx.value; i++) {
-    count += data[i].words.length
+    count += currentData.value[i].words.length
   }
   count += currentWordIdx.value + 1
   return count
@@ -102,7 +152,7 @@ const calculateProgressWords = () => {
 const progressStr = computed(() => `${currentLessonIdx.value + 1}课/${calculateProgressWords()}词`)
 
 // 课时与单词数据
-const currentLessonData = computed(() => data[currentLessonIdx.value] || { name: '', words: [] })
+const currentLessonData = computed(() => currentData.value[currentLessonIdx.value] || { name: '', words: [] })
 const validWordList = computed(() => currentLessonData.value.words)
 const currentWordData = computed(() => validWordList.value[currentWordIdx.value] || null)
 
@@ -119,8 +169,35 @@ const posMap = {
   'conj.': '连词',
   'int.': '感叹词',
   'phrase': '短语',
+  'phr.': '短语',
+  'contr.': '缩略词',
+  'det.': '限定词',
+  'modal v.': '情态动词',
+  'possessive adj.': '物主代词',
   'possessive adjective': '物主代词',
-  'adj.&n.': '形&名'
+  'int./adj.': '感/形',
+  'adj./n.': '形/名',
+  'adj./pron.': '形/代',
+  'n./adj.': '名/形',
+  'v./adj.': '动/形',
+  'adv./adj.': '副/形',
+  'n./adv.': '名/副',
+  'pron./det.': '代/限',
+  'int./v.': '感/动',
+  'adv./int.': '副/感',
+  'adj./int.': '形/感',
+  'v./n.': '动/名',
+  'det./pron.': '限/代',
+  'int./n.': '感/名',
+  'v./int.': '动/感',
+  'prep./adv.': '介/副',
+  'det./adv.': '限/副',
+  'adj. & n.': '形&名',
+  'adj.&n.': '形&名',
+  'adv. & pron.': '副&代',
+  'n. & adj.': '名&形',
+  'n. / adv.': '名/副',
+  'v. & n.': '动&名'
 }
 const getPos = (p) => {
   if (!p) return ''
@@ -197,7 +274,7 @@ const toggleAutoPlay = async () => {
 const executeNext = () => {
   if (currentWordIdx.value < validWordList.value.length - 1) {
     currentWordIdx.value++
-  } else if (currentLessonIdx.value < data.length - 1) {
+  } else if (currentLessonIdx.value < currentData.value.length - 1) {
     currentLessonIdx.value++
     currentWordIdx.value = 0
   }
@@ -208,7 +285,7 @@ const executePrev = () => {
     currentWordIdx.value--
   } else if (currentLessonIdx.value > 0) {
     currentLessonIdx.value--
-    const prevWordsLength = data[currentLessonIdx.value].words.length
+    const prevWordsLength = currentData.value[currentLessonIdx.value].words.length
     currentWordIdx.value = prevWordsLength > 0 ? prevWordsLength - 1 : 0
   }
 }
@@ -305,25 +382,30 @@ const scrollModalToTop = () => {
   }
 }
 
+const selectTextbook = (id) => {
+  currentTextbookId.value = id
+  showTextbookModal.value = false
+}
+
 </script>
 
 <template>
-  <div class="kid-app" v-if="data && data.length">
+  <div class="kid-app" v-if="currentData && currentData.length">
     
     <!-- 作者信息 -->
     <div class="author-info">
-      <span class="author-text">✍️ by 瑾恒/瑾言爸爸</span>
+      <span class="author-text">✍️ by 瑾恒/瑾言's Dad</span>
     </div>
 
     <!-- 头部可爱统计板块 -->
     <header class="stats-grid">
-      <div class="stat-box box-yellow">
+      <div class="stat-box box-yellow clickable-badge" @click="showTextbookModal = true">
         <!-- 玩法说明按钮 -->
-        <button class="cute-btn help-btn" @click="showHelpModal = true" style="color: #000; font-size: 22px; padding: 5px 15px;">!</button>
+        <button class="cute-btn help-btn" @click.stop="showHelpModal = true" style="color: #000; font-size: 22px; padding: 5px 15px;">!</button>
         <span class="stat-icon">📖</span>
         <div class="stat-content">
           <span class="stat-label">当前教材</span>
-          <span class="stat-value">新概念</span>
+          <span class="stat-value" :title="currentTextbook.name">{{ currentTextbook.name.length > 5 ? currentTextbook.name.slice(0, 5) : currentTextbook.name }}</span>
         </div>
       </div>
       <button class="cute-btn btn-danger dictation-btn" :class="{'btn-danger-active': isDictating}" @click="toggleDictation">
@@ -352,7 +434,7 @@ const scrollModalToTop = () => {
         <div class="tap-zone tap-left" @click="prevWord"></div>
         <div class="tap-zone tap-right" @click="nextWord"></div>
 
-        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson }} 关</div>
+        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson || currentLessonData.unit }} 关</div>
         <button class="auto-sound-badge"
                 :class="{'auto-sound-badge-active': autoPlayEnabled}"
                 @click="toggleAutoPlay">
@@ -420,12 +502,35 @@ const scrollModalToTop = () => {
           <button class="cute-btn btn-danger close-btn" @click="showModal = false">✖</button>
         </div>
         <div class="modal-list">
-          <div v-for="(lessonItem, index) in data" :key="index" 
+          <div v-for="(lessonItem, index) in currentData" :key="index" 
                class="modal-item"
                :class="{'active-lesson': index === currentLessonIdx}"
                @click="selectLesson(index)">
              <span class="level-icon">⭐</span>
-             <span class="level-name">Lesson {{ lessonItem.lesson }} ({{ lessonItem.words.length }} 词)</span>
+             <span class="level-name">{{ currentTextbook.type === 'primary' ? 'Unit' : 'Lesson' }} {{ lessonItem.lesson || lessonItem.unit }} ({{ lessonItem.words.length }} 词)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 玩法说明浮层 -->
+    <div class="modal-overlay" v-if="showTextbookModal" @click.self="showTextbookModal = false">
+      <div class="modal-content card-shadow">
+        
+        <!-- 一键置顶悬浮按钮 -->
+        <button class="cute-btn btn-secondary fab-top-btn" @click="scrollModalToTop">⬆️</button>
+
+        <div class="modal-header">
+          <h3>📚 挑选你想学的教材吧 📚</h3>
+          <button class="cute-btn btn-danger close-btn" @click="showTextbookModal = false">✖</button>
+        </div>
+        <div class="modal-list">
+          <div v-for="tb in textbooks" :key="tb.id" 
+               class="modal-item"
+               :class="{'active-lesson': tb.id === currentTextbookId}"
+               @click="selectTextbook(tb.id)">
+             <span class="level-icon">📖</span>
+             <span class="level-name">{{ tb.name }} ({{ tb.data.length }} 单元)</span>
           </div>
         </div>
       </div>
@@ -450,6 +555,19 @@ const scrollModalToTop = () => {
               </div>
             </div>
             <p class="help-desc">在单词卡片的左侧/右侧隐形区域，可快速切换上一个/下一个单词。</p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <div class="stat-box box-yellow demo-static-badge" style="display: inline-flex; justify-content: center; min-width: 130px; transform: rotate(-2deg) !important; padding: 5px 15px;">
+                <span style="font-size: 20px;">📖</span>
+                <div style="display: flex; flex-direction: column; text-align: left; margin-left: 6px;">
+                  <span style="font-size: 13px; font-weight: 900; color: #3d405b; line-height: 1;">当前教材</span>
+                  <span style="font-size: 15px; font-weight: 900; color: #3B415A; line-height: 1.2;">切换...</span>
+                </div>
+              </div>
+            </div>
+            <p class="help-desc">想要学习其他教材？点击主页左上角带有 📖 图标的黄色【当前教材】卡片，即可打开列表，自由切换想学的内容。</p>
           </div>
 
           <div class="help-item">
