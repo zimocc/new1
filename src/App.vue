@@ -442,6 +442,13 @@ const selectTextbook = (id) => {
   showTextbookModal.value = false
 }
 
+// 任意弹窗打开时锁定 body 滚动，防止触摸事件穿透到主视图
+const anyModalOpen = computed(() => showModal.value || showTextbookModal.value || showHelpModal.value)
+watch(anyModalOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+  document.documentElement.style.overflow = open ? 'hidden' : ''
+})
+
 </script>
 
 <template>
@@ -546,7 +553,7 @@ const selectTextbook = (id) => {
       </div>
     </section>
 
-    <div class="modal-overlay" v-if="showModal" @click.self="showModal = false">
+    <div class="modal-overlay" v-if="showModal" @click.self="showModal = false" @touchmove.stop @touchstart.stop>
       <div class="modal-content card-shadow">
         
         <!-- 一键置顶悬浮按钮 -->
@@ -569,7 +576,7 @@ const selectTextbook = (id) => {
     </div>
 
     <!-- 玩法说明浮层 -->
-    <div class="modal-overlay" v-if="showTextbookModal" @click.self="showTextbookModal = false">
+    <div class="modal-overlay" v-if="showTextbookModal" @click.self="showTextbookModal = false" @touchmove.stop @touchstart.stop>
       <div class="modal-content card-shadow">
         
         <!-- 一键置顶悬浮按钮 -->
@@ -592,7 +599,7 @@ const selectTextbook = (id) => {
     </div>
 
     <!-- 玩法说明浮层 -->
-    <div class="modal-overlay" v-if="showHelpModal" @click.self="showHelpModal = false">
+    <div class="modal-overlay" v-if="showHelpModal" @click.self="showHelpModal = false" @touchmove.stop @touchstart.stop>
       <div class="modal-content card-shadow help-modal">
         <div class="modal-header">
           <h3>💡 应用使用说明</h3>
@@ -959,6 +966,9 @@ html, body {
   position: fixed; inset: 0; background: rgba(61, 64, 91, 0.7);
   display: flex; justify-content: center; align-items: center; z-index: 999;
   backdrop-filter: blur(4px);
+  /* 阻止触摸事件穿透到底层 */
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 .modal-content {
   width: 90%; max-width: 450px; max-height: 80vh;
@@ -990,6 +1000,10 @@ html, body {
 
 .modal-list {
   padding: 20px; overflow-y: auto; background: #fff;
+  /* 允许弹窗内部正常滚动，同时阻止滚动穿透 */
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .modal-item {
   padding: 15px; border: 4px solid #dfe6e9; border-radius: 16px;
