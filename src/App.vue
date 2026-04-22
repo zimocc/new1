@@ -1,5 +1,250 @@
+<template>
+  <div class="kid-app" v-if="currentData && currentData.length">
+    
+    <!-- 作者信息 -->
+    <div class="author-info">
+      <span class="author-text">✍️ by 瑾恒/瑾言's Dad</span>
+    </div>
+
+    <!-- 头部可爱统计板块 -->
+    <header class="stats-grid">
+      <div class="stat-box box-yellow clickable-badge" @click="showTextbookModal = true">
+        <!-- 玩法说明按钮 -->
+        <button class="cute-btn help-btn" @click.stop="showHelpModal = true" style="color: #000; font-size: 22px; padding: 5px 15px;">!</button>
+        <span class="stat-icon">📖</span>
+        <div class="stat-content">
+          <span class="stat-label">当前教材</span>
+          <span class="stat-value" :title="currentTextbook.name">{{ currentTextbook.name.length > 5 ? currentTextbook.name.slice(0, 5) : currentTextbook.name }}</span>
+        </div>
+      </div>
+      <button class="cute-btn btn-danger dictation-btn" :class="{'btn-danger-active': isDictating}" @click="toggleDictation">
+        {{ isDictating ? '⏹ 停止听写' : '▶️ 听写' }}
+      </button>
+      <div class="stat-box box-pink">
+        <span class="stat-icon">📚</span>
+        <div class="stat-content">
+           <span class="stat-label">课程/词汇</span>
+           <span class="stat-value">{{ totalCourses }}课/{{ totalWords }}词</span>
+        </div>
+      </div>
+      <div class="stat-box box-green">
+        <span class="stat-icon">🐱</span>
+        <div class="stat-content">
+           <span class="stat-label">本猫进度</span>
+           <span class="stat-value">{{ progressStr }}</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 学习主舞台 -->
+    <main class="learning-section">
+      <div class="main-card card-shadow">
+        <!-- 左侧/右侧点击热区（带烟花反馈） -->
+        <div class="tap-zone tap-left" @click="tapPrev($event)"></div>
+        <div class="tap-zone tap-right" @click="tapNext($event)"></div>
+
+        <!-- 烟花粒子 -->
+        <div class="firework-particle" v-for="p in particles" :key="p.id"
+             :style="{
+               left: p.x + 'px',
+               top: p.y + 'px',
+               '--dx': p.dx + 'px',
+               '--dy': p.dy + 'px',
+               '--color': p.color,
+               '--size': p.size + 'px'
+             }"></div>
+
+        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson || currentLessonData.unit }} 关</div>
+        <button class="auto-sound-badge"
+                :class="{'auto-sound-badge-active': autoPlayEnabled}"
+                @click="toggleAutoPlay">
+          {{ autoPlayEnabled ? '🔊 关闭发音' : '🔊 自动发音' }}
+        </button>
+        <div class="lesson-name-wrapper">
+          <h2 class="lesson-name">{{ currentLessonData.name || '闯关进行中...' }}</h2>
+          <!-- Toast 通知弹窗（定位到章节标题位置） -->
+          <Transition name="toast-pop">
+            <div class="toast-notification" v-if="toastVisible">
+              {{ toastMessage }}
+            </div>
+          </Transition>
+        </div>
+
+        <!-- 当前单词展示区 -->
+        <div class="word-display" v-if="currentWordData">
+          <!-- 单词信息区（带滑动动画） -->
+          <Transition :name="`word-slide-${slideDirection}`" mode="out-in">
+            <div class="word-info-animated" :key="`${currentLessonIdx}-${currentWordIdx}`">
+              <h1 class="word-text" :style="getWordStyle(currentWordData.word)">{{ currentWordData.word }}</h1>
+              <p class="word-phonetics">{{ currentWordData.phoneticSymbol }}</p>
+              <div class="word-pos-tag">{{ getPos(currentWordData.partSpeech) }}</div>
+            </div>
+          </Transition>
+
+          <!-- 发音按钮（不参与滑动动画） -->
+          <button class="cute-btn btn-primary mt-15" :class="{'disabled-btn': isPlaying}" @click="playSpeech(currentWordData.word)">
+            <template v-if="isPlaying">🔊 正在发音...</template>
+            <template v-else>🔊 点我听发音</template>
+          </button>
+
+          <!-- 神秘翻译盒子（仅释义显示时参与滑动动画） -->
+          <Transition :name="slideMeaning ? `word-slide-${slideDirection}` : ''" mode="out-in">
+            <div class="meaning-box"
+                 :key="`meaning-${currentLessonIdx}-${currentWordIdx}`"
+                 @click="toggleMeaning"
+                 :class="{'revealed': isMeaningVisible, 'meaning-box-locked': autoPlayEnabled}">
+              <span v-if="!isMeaningVisible" class="mystery-text">👆 点击这里，揭开中文秘密！</span>
+              <span v-else class="meaning-text">{{ currentWordData.cn }}</span>
+            </div>
+          </Transition>
+        </div>
+        <div class="word-display empty-display" v-if="!currentWordData">
+          <span class="empty-icon">🎈</span>
+          <p>太棒啦！这节课没有新单词哦～快去下一关！</p>
+        </div>
+
+        <!-- 导航操作栏 -->
+        <div class="actions-row">
+          <button v-if="!isFirstWordGlobal" class="cute-btn btn-action" @click="prevWord">⬅️ 上一个</button>
+          <button v-if="!isLastWordGlobal" class="cute-btn btn-action" @click="nextWord">下一个 ➡️</button>
+        </div>
+      </div>
+      
+    </main>
+
+    <!-- 课文词汇小跟班 -->
+    <section class="list-section">
+      <h2 class="section-title">🎒 本课的单词小伙伴</h2>
+      <div class="list-scroll-container" ref="wordListContainer">
+        <div class="word-list-box card-shadow" v-for="(item, idx) in validWordList" :key="idx" 
+             :class="{'active-word': idx === currentWordIdx}"
+             @click="selectWord(idx)">
+          <div class="word-list-left">
+            <p class="list-word">{{ item.word }}</p>
+            <p class="list-phonetics">{{ item.phoneticSymbol }}</p>
+          </div>
+          <div class="play-icon" @click.stop="playSpeech(item.word)">🎵</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal-overlay" v-if="showModal" @click.self="showModal = false" @touchmove.stop @touchstart.stop>
+      <div class="modal-content card-shadow">
+        
+        <!-- 一键置顶悬浮按钮 -->
+        <button class="cute-btn btn-secondary fab-top-btn" @click="scrollModalToTop">⇧</button>
+
+        <div class="modal-header">
+          <h3>🎊 挑选你想学的关卡吧 🎊</h3>
+          <button class="cute-btn btn-danger close-btn" @click="showModal = false">✖</button>
+        </div>
+        <div class="modal-list">
+          <div v-for="(lessonItem, index) in currentData" :key="index" 
+               class="modal-item"
+               :class="{'active-lesson': index === currentLessonIdx}"
+               @click="selectLesson(index)">
+             <span class="level-icon">⭐</span>
+             <span class="level-name">{{ currentTextbook.type === 'primary' ? 'Unit' : 'Lesson' }} {{ lessonItem.lesson || lessonItem.unit }} ({{ lessonItem.words.length }} 词)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 玩法说明浮层 -->
+    <div class="modal-overlay" v-if="showTextbookModal" @click.self="showTextbookModal = false" @touchmove.stop @touchstart.stop>
+      <div class="modal-content card-shadow">
+        
+        <!-- 一键置顶悬浮按钮 -->
+        <button class="cute-btn btn-secondary fab-top-btn" @click="scrollModalToTop">⇧</button>
+
+        <div class="modal-header">
+          <h3>📚 挑选你想学的教材吧 📚</h3>
+          <button class="cute-btn btn-danger close-btn" @click="showTextbookModal = false">✖</button>
+        </div>
+        <div class="modal-list">
+          <div v-for="tb in textbooks" :key="tb.id" 
+               class="modal-item"
+               :class="{'active-lesson': tb.id === currentTextbookId}"
+               @click="selectTextbook(tb.id)">
+             <span class="level-icon">📖</span>
+             <span class="level-name">{{ tb.name }} ({{ tb.data.length }} 单元)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 玩法说明浮层 -->
+    <div class="modal-overlay" v-if="showHelpModal" @click.self="showHelpModal = false" @touchmove.stop @touchstart.stop>
+      <div class="modal-content card-shadow help-modal">
+        <div class="modal-header">
+          <h3>💡 应用使用说明</h3>
+          <button class="cute-btn btn-danger close-btn" @click="showHelpModal = false">✖</button>
+        </div>
+        <div class="modal-list help-content">
+          
+          <div class="help-item">
+            <h4>👉 快速切换单词</h4>
+            <div class="help-visual">
+              <div class="demo-card">
+                <div class="demo-tap-left">点击<br>上一个</div>
+                <div class="demo-tap-right">点击<br>下一个</div>
+                <div class="demo-word">单词卡片区</div>
+              </div>
+            </div>
+            <p class="help-desc">在单词卡片的左侧/右侧隐形区域，可快速切换上一个/下一个单词。</p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <div class="stat-box box-yellow demo-static-badge" style="display: inline-flex; justify-content: center; min-width: 130px; transform: rotate(-2deg) !important; padding: 5px 15px;">
+                <span style="font-size: 20px;">📖</span>
+                <div style="display: flex; flex-direction: column; text-align: left; margin-left: 6px;">
+                  <span style="font-size: 13px; font-weight: 900; color: #3d405b; line-height: 1;">当前教材</span>
+                  <span style="font-size: 15px; font-weight: 900; color: #3B415A; line-height: 1.2;">切换...</span>
+                </div>
+              </div>
+            </div>
+            <p class="help-desc">想要学习其他教材？点击主页左上角带有 📖 图标的黄色【当前教材】卡片，即可打开列表，自由切换想学的内容。</p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <span class="lesson-badge demo-static-badge" style="transform: rotate(-3deg) !important;">📂 第 X 关</span>
+            </div>
+            <p class="help-desc">想要挑战其他关卡？点击此标签即可打开关卡列表，自由选择你要学习的内容。</p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <span class="auto-sound-badge demo-static-badge">🔊 自动发音</span>
+            </div>
+            <p class="help-desc">
+              1. 切换单词后将<strong>自动朗读</strong>此单词。<br>
+              2. 中文释义将<strong>直接展示</strong>，不再隐藏。
+            </p>
+          </div>
+
+          <div class="help-item">
+            <div class="demo-btn-wrap">
+              <button class="cute-btn btn-danger demo-static-btn">▶️ 听写</button>
+            </div>
+            <p class="help-desc">
+              每个单词会<strong>朗读3遍</strong>（每遍间隔2秒）。<br>
+              随后中场休息<strong>5秒</strong>后进入下一个单词的循环，适合拿出纸笔一起听写。
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+
+
+  </div>
+</template>
+
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick, onUnmounted } from 'vue'
 import { data as nce1 } from './data/nce1.js'
 import { data as p3A } from './data/3A.js'
 import { data as p3B } from './data/3B.js'
@@ -29,6 +274,59 @@ const isDictating = ref(false)
 const autoPlayEnabled = ref(false)
 let dictationTimer = null
 let isReadyForAutoPlay = false
+
+// Toast 通知系统
+const toastMessage = ref('')
+const toastVisible = ref(false)
+let toastTimer = null
+
+const showToast = (msg, duration = 1800) => {
+  toastMessage.value = msg
+  toastVisible.value = true
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => {
+    toastVisible.value = false
+  }, duration)
+}
+
+// 烟花粒子效果
+const particles = ref([])
+let particleId = 0
+
+const createFirework = (event) => {
+  const card = event.currentTarget.closest('.main-card')
+  if (!card) return
+  const rect = card.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  const colors = ['#ff7675', '#fdcb6e', '#74b9ff', '#a29bfe', '#55efc4', '#fab1a0', '#fd79a8']
+  const batch = []
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.PI * 2 / 8) * i + (Math.random() - 0.5) * 0.8
+    const dist = 20 + Math.random() * 25
+    batch.push({
+      id: ++particleId,
+      x, y,
+      dx: Math.cos(angle) * dist,
+      dy: Math.sin(angle) * dist,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: 5 + Math.random() * 5
+    })
+  }
+  particles.value.push(...batch)
+  setTimeout(() => {
+    const ids = new Set(batch.map(p => p.id))
+    particles.value = particles.value.filter(p => !ids.has(p.id))
+  }, 600)
+}
+
+// 单词切换滑动方向
+const slideDirection = ref('next')
+const slideMeaning = ref(false) // 切换前释义是否可见（用于决定翻译盒子是否参与滑动）
+
+onUnmounted(() => {
+  if (toastTimer) clearTimeout(toastTimer)
+})
 
 const loadProgress = () => {
   const tbId = currentTextbookId.value
@@ -155,6 +453,15 @@ const progressStr = computed(() => `${currentLessonIdx.value + 1}课/${calculate
 const currentLessonData = computed(() => currentData.value[currentLessonIdx.value] || { name: '', words: [] })
 const validWordList = computed(() => currentLessonData.value.words)
 const currentWordData = computed(() => validWordList.value[currentWordIdx.value] || null)
+
+// 全局边界检测：是否为整本教材的第一个/最后一个单词
+const isFirstWordGlobal = computed(() => currentLessonIdx.value === 0 && currentWordIdx.value === 0)
+const isLastWordGlobal = computed(() => {
+  const lastLessonIdx = currentData.value.length - 1
+  if (currentLessonIdx.value < lastLessonIdx) return false
+  const lastWordIdx = currentData.value[lastLessonIdx]?.words.length - 1
+  return currentWordIdx.value >= lastWordIdx
+})
 
 // 词性映射表
 const posMap = {
@@ -326,36 +633,74 @@ const toggleAutoPlay = async () => {
   await playSpeech(currentWordData.value?.word, true)
 }
 
+// 获取课时显示名称（unit 或 lesson）
+const getLessonLabel = (lessonIdx) => {
+  const lesson = currentData.value[lessonIdx]
+  if (!lesson) return ''
+  const type = currentTextbook.value.type === 'primary' ? 'Unit' : 'Lesson'
+  const num = lesson.lesson || lesson.unit
+  return `${type} ${num}`
+}
+
 const executeNext = () => {
+  slideMeaning.value = isMeaningVisible.value
   if (currentWordIdx.value < validWordList.value.length - 1) {
     currentWordIdx.value++
   } else if (currentLessonIdx.value < currentData.value.length - 1) {
+    const oldLessonIdx = currentLessonIdx.value
     currentLessonIdx.value++
     currentWordIdx.value = 0
+    // 跨课时切换时显示 toast
+    showToast(`📂 ${getLessonLabel(currentLessonIdx.value)}`)
   }
 }
 
 const executePrev = () => {
+  slideMeaning.value = isMeaningVisible.value
   if (currentWordIdx.value > 0) {
     currentWordIdx.value--
   } else if (currentLessonIdx.value > 0) {
     currentLessonIdx.value--
     const prevWordsLength = currentData.value[currentLessonIdx.value].words.length
     currentWordIdx.value = prevWordsLength > 0 ? prevWordsLength - 1 : 0
+    // 跨课时切换时显示 toast
+    showToast(`📂 ${getLessonLabel(currentLessonIdx.value)}`)
   }
 }
 
 const nextWord = () => {
   if (isDictating.value) toggleDictation()
+  if (isLastWordGlobal.value) {
+    showToast('🎉 已经是最后一个单词啦！')
+    return
+  }
+  slideDirection.value = 'next'
   executeNext()
 }
 const prevWord = () => {
   if (isDictating.value) toggleDictation()
+  if (isFirstWordGlobal.value) {
+    showToast('📖 已经是第一个单词啦！')
+    return
+  }
+  slideDirection.value = 'prev'
   executePrev()
 }
 const selectWord = (idx) => {
   if (isDictating.value) toggleDictation()
+  slideDirection.value = idx > currentWordIdx.value ? 'next' : 'prev'
+  slideMeaning.value = isMeaningVisible.value
   currentWordIdx.value = idx
+}
+
+// 卡片热区点击（带烟花反馈）
+const tapPrev = (e) => {
+  createFirework(e)
+  prevWord()
+}
+const tapNext = (e) => {
+  createFirework(e)
+  nextWord()
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
@@ -451,220 +796,7 @@ watch(anyModalOpen, (open) => {
 
 </script>
 
-<template>
-  <div class="kid-app" v-if="currentData && currentData.length">
-    
-    <!-- 作者信息 -->
-    <div class="author-info">
-      <span class="author-text">✍️ by 瑾恒/瑾言's Dad</span>
-    </div>
 
-    <!-- 头部可爱统计板块 -->
-    <header class="stats-grid">
-      <div class="stat-box box-yellow clickable-badge" @click="showTextbookModal = true">
-        <!-- 玩法说明按钮 -->
-        <button class="cute-btn help-btn" @click.stop="showHelpModal = true" style="color: #000; font-size: 22px; padding: 5px 15px;">!</button>
-        <span class="stat-icon">📖</span>
-        <div class="stat-content">
-          <span class="stat-label">当前教材</span>
-          <span class="stat-value" :title="currentTextbook.name">{{ currentTextbook.name.length > 5 ? currentTextbook.name.slice(0, 5) : currentTextbook.name }}</span>
-        </div>
-      </div>
-      <button class="cute-btn btn-danger dictation-btn" :class="{'btn-danger-active': isDictating}" @click="toggleDictation">
-        {{ isDictating ? '⏹ 停止听写' : '▶️ 听写' }}
-      </button>
-      <div class="stat-box box-pink">
-        <span class="stat-icon">📚</span>
-        <div class="stat-content">
-           <span class="stat-label">课程/词汇</span>
-           <span class="stat-value">{{ totalCourses }}课/{{ totalWords }}词</span>
-        </div>
-      </div>
-      <div class="stat-box box-green">
-        <span class="stat-icon">🐱</span>
-        <div class="stat-content">
-           <span class="stat-label">本猫进度</span>
-           <span class="stat-value">{{ progressStr }}</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- 学习主舞台 -->
-    <main class="learning-section">
-      <div class="main-card card-shadow">
-        <!-- 左侧/右侧隐形点击区 -->
-        <div class="tap-zone tap-left" @click="prevWord"></div>
-        <div class="tap-zone tap-right" @click="nextWord"></div>
-
-        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson || currentLessonData.unit }} 关</div>
-        <button class="auto-sound-badge"
-                :class="{'auto-sound-badge-active': autoPlayEnabled}"
-                @click="toggleAutoPlay">
-          {{ autoPlayEnabled ? '🔊 关闭发音' : '🔊 自动发音' }}
-        </button>
-        <h2 class="lesson-name">{{ currentLessonData.name || '闯关进行中...' }}</h2>
-
-        <!-- 当前单词展示区 -->
-        <div class="word-display" v-if="currentWordData">
-          <h1 class="word-text" :style="getWordStyle(currentWordData.word)">{{ currentWordData.word }}</h1>
-          <p class="word-phonetics">{{ currentWordData.phoneticSymbol }}</p>
-          <div class="word-pos-tag">{{ getPos(currentWordData.partSpeech) }}</div>
-
-          <button class="cute-btn btn-primary mt-15" :class="{'disabled-btn': isPlaying}" @click="playSpeech(currentWordData.word)">
-            <template v-if="isPlaying">🔊 正在发音...</template>
-            <template v-else>🔊 点我听发音</template>
-          </button>
-
-          <!-- 神秘翻译盒子 -->
-          <div class="meaning-box"
-               @click="toggleMeaning"
-               :class="{'revealed': isMeaningVisible, 'meaning-box-locked': autoPlayEnabled}">
-            <span v-if="!isMeaningVisible" class="mystery-text">👆 点击这里，揭开中文秘密！</span>
-            <span v-else class="meaning-text">{{ currentWordData.cn }}</span>
-          </div>
-        </div>
-        <div class="word-display empty-display" v-else>
-          <span class="empty-icon">🎈</span>
-          <p>太棒啦！这节课没有新单词哦～快去下一关！</p>
-        </div>
-
-        <!-- 导航操作栏 -->
-        <div class="actions-row">
-          <button class="cute-btn btn-action" @click="prevWord">⬅️ 上一个</button>
-          <button class="cute-btn btn-action" @click="nextWord">下一个 ➡️</button>
-        </div>
-      </div>
-      
-    </main>
-
-    <!-- 课文词汇小跟班 -->
-    <section class="list-section">
-      <h2 class="section-title">🎒 本课的单词小伙伴</h2>
-      <div class="list-scroll-container" ref="wordListContainer">
-        <div class="word-list-box card-shadow" v-for="(item, idx) in validWordList" :key="idx" 
-             :class="{'active-word': idx === currentWordIdx}"
-             @click="selectWord(idx)">
-          <div class="word-list-left">
-            <p class="list-word">{{ item.word }}</p>
-            <p class="list-phonetics">{{ item.phoneticSymbol }}</p>
-          </div>
-          <div class="play-icon" @click.stop="playSpeech(item.word)">🎵</div>
-        </div>
-      </div>
-    </section>
-
-    <div class="modal-overlay" v-if="showModal" @click.self="showModal = false" @touchmove.stop @touchstart.stop>
-      <div class="modal-content card-shadow">
-        
-        <!-- 一键置顶悬浮按钮 -->
-        <button class="cute-btn btn-secondary fab-top-btn" @click="scrollModalToTop">⬆️</button>
-
-        <div class="modal-header">
-          <h3>🎊 挑选你想学的关卡吧 🎊</h3>
-          <button class="cute-btn btn-danger close-btn" @click="showModal = false">✖</button>
-        </div>
-        <div class="modal-list">
-          <div v-for="(lessonItem, index) in currentData" :key="index" 
-               class="modal-item"
-               :class="{'active-lesson': index === currentLessonIdx}"
-               @click="selectLesson(index)">
-             <span class="level-icon">⭐</span>
-             <span class="level-name">{{ currentTextbook.type === 'primary' ? 'Unit' : 'Lesson' }} {{ lessonItem.lesson || lessonItem.unit }} ({{ lessonItem.words.length }} 词)</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 玩法说明浮层 -->
-    <div class="modal-overlay" v-if="showTextbookModal" @click.self="showTextbookModal = false" @touchmove.stop @touchstart.stop>
-      <div class="modal-content card-shadow">
-        
-        <!-- 一键置顶悬浮按钮 -->
-        <button class="cute-btn btn-secondary fab-top-btn" @click="scrollModalToTop">⬆️</button>
-
-        <div class="modal-header">
-          <h3>📚 挑选你想学的教材吧 📚</h3>
-          <button class="cute-btn btn-danger close-btn" @click="showTextbookModal = false">✖</button>
-        </div>
-        <div class="modal-list">
-          <div v-for="tb in textbooks" :key="tb.id" 
-               class="modal-item"
-               :class="{'active-lesson': tb.id === currentTextbookId}"
-               @click="selectTextbook(tb.id)">
-             <span class="level-icon">📖</span>
-             <span class="level-name">{{ tb.name }} ({{ tb.data.length }} 单元)</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 玩法说明浮层 -->
-    <div class="modal-overlay" v-if="showHelpModal" @click.self="showHelpModal = false" @touchmove.stop @touchstart.stop>
-      <div class="modal-content card-shadow help-modal">
-        <div class="modal-header">
-          <h3>💡 应用使用说明</h3>
-          <button class="cute-btn btn-danger close-btn" @click="showHelpModal = false">✖</button>
-        </div>
-        <div class="modal-list help-content">
-          
-          <div class="help-item">
-            <h4>👉 快速切换单词</h4>
-            <div class="help-visual">
-              <div class="demo-card">
-                <div class="demo-tap-left">点击<br>上一个</div>
-                <div class="demo-tap-right">点击<br>下一个</div>
-                <div class="demo-word">单词卡片区</div>
-              </div>
-            </div>
-            <p class="help-desc">在单词卡片的左侧/右侧隐形区域，可快速切换上一个/下一个单词。</p>
-          </div>
-
-          <div class="help-item">
-            <div class="demo-btn-wrap">
-              <div class="stat-box box-yellow demo-static-badge" style="display: inline-flex; justify-content: center; min-width: 130px; transform: rotate(-2deg) !important; padding: 5px 15px;">
-                <span style="font-size: 20px;">📖</span>
-                <div style="display: flex; flex-direction: column; text-align: left; margin-left: 6px;">
-                  <span style="font-size: 13px; font-weight: 900; color: #3d405b; line-height: 1;">当前教材</span>
-                  <span style="font-size: 15px; font-weight: 900; color: #3B415A; line-height: 1.2;">切换...</span>
-                </div>
-              </div>
-            </div>
-            <p class="help-desc">想要学习其他教材？点击主页左上角带有 📖 图标的黄色【当前教材】卡片，即可打开列表，自由切换想学的内容。</p>
-          </div>
-
-          <div class="help-item">
-            <div class="demo-btn-wrap">
-              <span class="lesson-badge demo-static-badge" style="transform: rotate(-3deg) !important;">📂 第 X 关</span>
-            </div>
-            <p class="help-desc">想要挑战其他关卡？点击此标签即可打开关卡列表，自由选择你要学习的内容。</p>
-          </div>
-
-          <div class="help-item">
-            <div class="demo-btn-wrap">
-              <span class="auto-sound-badge demo-static-badge">🔊 自动发音</span>
-            </div>
-            <p class="help-desc">
-              1. 切换单词后将<strong>自动朗读</strong>此单词。<br>
-              2. 中文释义将<strong>直接展示</strong>，不再隐藏。
-            </p>
-          </div>
-
-          <div class="help-item">
-            <div class="demo-btn-wrap">
-              <button class="cute-btn btn-danger demo-static-btn">▶️ 听写</button>
-            </div>
-            <p class="help-desc">
-              每个单词会<strong>朗读3遍</strong>（每遍间隔2秒）。<br>
-              随后中场休息<strong>5秒</strong>后进入下一个单词的循环，适合拿出纸笔一起听写。
-            </p>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-  </div>
-</template>
 
 <style>
 /* 整个页面使用欢快的纸面质感圆点背景 */
@@ -920,16 +1052,68 @@ html, body {
 
 .actions-row { margin-top: 25px; display: flex; gap: 15px; position: relative; z-index: 10; }
 
-/* 两侧隐形点击切换热区 */
+/* 两侧点击切换热区 */
 .tap-zone {
   position: absolute;
   top: 0; bottom: 0;
   width: 25%;
-  z-index: 5; /* 保证它位于卡片底部上方，但是被中心按钮盖住 */
+  z-index: 5;
   cursor: pointer;
 }
 .tap-left { left: 0; }
 .tap-right { right: 0; }
+
+/* 烟花粒子 */
+.firework-particle {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  background: var(--color);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 100;
+  animation: firework-burst 0.5s ease-out forwards;
+}
+@keyframes firework-burst {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(0);
+    opacity: 0;
+  }
+}
+
+/* 单词信息动画容器 */
+.word-info-animated {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 单词切换滑动过渡 */
+.word-slide-next-enter-active,
+.word-slide-next-leave-active,
+.word-slide-prev-enter-active,
+.word-slide-prev-leave-active {
+  transition: all 0.18s ease-out;
+}
+.word-slide-next-enter-from {
+  opacity: 0; transform: translateX(30px);
+}
+.word-slide-next-leave-to {
+  opacity: 0; transform: translateX(-30px);
+}
+.word-slide-prev-enter-from {
+  opacity: 0; transform: translateX(-30px);
+}
+.word-slide-prev-leave-to {
+  opacity: 0; transform: translateX(30px);
+}
 
 /* === 词表大集合 === */
 .section-title {
@@ -982,12 +1166,14 @@ html, body {
   right: 20px;
   width: 50px;
   height: 50px;
+  color: white;
   border-radius: 50%;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 26px;
+  font-size: 30px;
+  line-height: 30px;
   z-index: 50;
 }
 .modal-header {
@@ -1132,5 +1318,59 @@ html, body {
   padding: 8px 25px !important;
   pointer-events: none;
   margin: 0;
+}
+
+/* === 章节标题包裹层（供 Toast 定位） === */
+.lesson-name-wrapper {
+  position: relative;
+  z-index: 20;
+}
+
+/* === Toast 通知弹窗 === */
+.toast-notification {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #3d405b;
+  color: #fff;
+  font-weight: 900;
+  font-size: 16px;
+  padding: 12px 28px;
+  border-radius: 14px;
+  border: 4px solid #2d3436;
+  box-shadow: 0 6px 0 #2d3436;
+  z-index: 9999;
+  white-space: nowrap;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* Toast 弹出/消失动画 */
+.toast-pop-enter-active {
+  animation: toast-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.toast-pop-leave-active {
+  animation: toast-out 0.25s ease-in forwards;
+}
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes toast-out {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
 }
 </style>
