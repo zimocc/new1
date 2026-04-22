@@ -20,9 +20,9 @@
 
 | 文件 | 内容 |
 |------|------|
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 技术架构、目录结构、依赖关系 |
-| [DESIGN_STYLE.md](./DESIGN_STYLE.md) | UI/UX 设计规范 — Neo-Brutalism 风格系统 |
-| [FEATURES.md](./FEATURES.md) | 功能清单、交互逻辑、业务规则 |
-| [DATA_PIPELINE.md](./DATA_PIPELINE.md) | 词汇数据格式、转换脚本、新教材接入流程 |
-| [TTS_ENGINE.md](./TTS_ENGINE.md) | TTS 发音引擎架构、降级链路、Cloudflare 部署 |
-| [DEVELOPMENT.md](./DEVELOPMENT.md) | 本地开发、构建部署、Git 规范 |
+| [ARCHITECTURE](../architecture/SKILL.md) | 技术架构、目录结构、依赖关系 |
+| [DESIGN_STYLE](../design-style/SKILL.md) | UI/UX 设计规范 — Neo-Brutalism 风格系统 |
+| [FEATURES](../features/SKILL.md) | 功能清单、交互逻辑、业务规则 |
+| [DATA_PIPELINE](../data-pipeline/SKILL.md) | 词汇数据格式、转换脚本、新教材接入流程 |
+| [TTS_ENGINE](../tts-engine/SKILL.md) | TTS 发音引擎架构、降级链路、Cloudflare 部署 |
+| [DEVELOPMENT](../development/SKILL.md) | 本地开发、构建部署、Git 规范 |
