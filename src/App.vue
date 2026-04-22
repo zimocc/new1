@@ -73,7 +73,7 @@
         <!-- 当前单词展示区 -->
         <div class="word-display" v-if="currentWordData">
           <!-- 单词信息区（带滑动动画） -->
-          <Transition :name="`word-slide-${slideDirection}`" mode="out-in">
+          <Transition :name="enableWordSlide ? `word-slide-${slideDirection}` : ''" mode="out-in">
             <div class="word-info-animated" :key="`${currentLessonIdx}-${currentWordIdx}`">
               <h1 class="word-text" :style="getWordStyle(currentWordData.word)">{{ currentWordData.word }}</h1>
               <p class="word-phonetics">{{ currentWordData.phoneticSymbol }}</p>
@@ -323,12 +323,14 @@ const createFirework = (event) => {
 // 单词切换滑动方向
 const slideDirection = ref('next')
 const slideMeaning = ref(false) // 切换前释义是否可见（用于决定翻译盒子是否参与滑动）
+const enableWordSlide = ref(false) // 仅用户主动切词时启用，避免恢复进度时误播动画
 
 onUnmounted(() => {
   if (toastTimer) clearTimeout(toastTimer)
 })
 
 const loadProgress = () => {
+  enableWordSlide.value = false
   const tbId = currentTextbookId.value
   const savedLesson = localStorage.getItem(`${tbId}_progress_lesson`)
   const savedWord = localStorage.getItem(`${tbId}_progress_word`)
@@ -674,6 +676,7 @@ const nextWord = () => {
     showToast('🎉 已经是最后一个单词啦！')
     return
   }
+  enableWordSlide.value = true
   slideDirection.value = 'next'
   executeNext()
 }
@@ -683,11 +686,13 @@ const prevWord = () => {
     showToast('📖 已经是第一个单词啦！')
     return
   }
+  enableWordSlide.value = true
   slideDirection.value = 'prev'
   executePrev()
 }
 const selectWord = (idx) => {
   if (isDictating.value) toggleDictation()
+  enableWordSlide.value = true
   slideDirection.value = idx > currentWordIdx.value ? 'next' : 'prev'
   slideMeaning.value = isMeaningVisible.value
   currentWordIdx.value = idx
@@ -755,6 +760,7 @@ const toggleDictation = async () => {
 }
 
 const selectLesson = (idx) => {
+  enableWordSlide.value = false
   currentLessonIdx.value = idx
   currentWordIdx.value = 0
   showModal.value = false
@@ -762,6 +768,7 @@ const selectLesson = (idx) => {
 }
 
 const restartLesson = () => {
+  enableWordSlide.value = false
   currentWordIdx.value = 0
 }
 
