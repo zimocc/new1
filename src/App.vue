@@ -936,7 +936,10 @@ html, body {
   color: #fff !important;
   cursor: not-allowed;
   border-color: #636e72 !important;
-  pointer-events: none;
+}
+.disabled-btn:active {
+  transform: none !important;
+  box-shadow: 0 5px 0 #636e72 !important;
 }
 
 /* 主展示卡片 */
