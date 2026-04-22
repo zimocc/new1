@@ -71,7 +71,7 @@
         </div>
 
         <!-- 当前单词展示区 -->
-        <div class="word-display" v-if="currentWordData">
+        <div class="word-display" v-if="progressLoaded && currentWordData">
           <!-- 单词信息区（带滑动动画） -->
           <Transition :name="enableWordSlide ? `word-slide-${slideDirection}` : ''" mode="out-in">
             <div class="word-info-animated" :key="`${currentLessonIdx}-${currentWordIdx}`">
@@ -98,7 +98,7 @@
             </div>
           </Transition>
         </div>
-        <div class="word-display empty-display" v-if="!currentWordData">
+        <div class="word-display empty-display" v-if="progressLoaded && !currentWordData">
           <span class="empty-icon">🎈</span>
           <p>太棒啦！这节课没有新单词哦～快去下一关！</p>
         </div>
@@ -113,7 +113,7 @@
     </main>
 
     <!-- 课文词汇小跟班 -->
-    <section class="list-section">
+    <section class="list-section" v-if="progressLoaded">
       <h2 class="section-title">🎒 本课的单词小伙伴</h2>
       <div class="list-scroll-container" ref="wordListContainer">
         <div class="word-list-box card-shadow" v-for="(item, idx) in validWordList" :key="idx" 
@@ -324,6 +324,7 @@ const createFirework = (event) => {
 const slideDirection = ref('next')
 const slideMeaning = ref(false) // 切换前释义是否可见（用于决定翻译盒子是否参与滑动）
 const enableWordSlide = ref(false) // 仅用户主动切词时启用，避免恢复进度时误播动画
+const progressLoaded = ref(false) // 首屏先恢复进度，再渲染单词区，避免闪出默认首词
 
 onUnmounted(() => {
   if (toastTimer) clearTimeout(toastTimer)
@@ -358,6 +359,7 @@ const loadProgress = () => {
 
 // 从 LocalStorage 加载数据
 onMounted(async () => {
+  progressLoaded.value = false
   const savedTb = localStorage.getItem('current_textbook')
   if (savedTb && textbooks.find(t => t.id === savedTb)) {
     currentTextbookId.value = savedTb
@@ -367,6 +369,7 @@ onMounted(async () => {
   const savedHelpShown = localStorage.getItem('help_shown')
 
   loadProgress()
+  progressLoaded.value = true
   
   if (savedAutoPlay !== null) {
     autoPlayEnabled.value = savedAutoPlay === 'true'
@@ -381,7 +384,9 @@ onMounted(async () => {
 
 watch(currentTextbookId, (newId) => {
   localStorage.setItem('current_textbook', newId)
+  progressLoaded.value = false
   loadProgress()
+  progressLoaded.value = true
   showMeaning.value = false
   if (isDictating.value) toggleDictation()
 })
