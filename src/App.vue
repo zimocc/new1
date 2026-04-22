@@ -23,15 +23,15 @@
       <div class="stat-box box-pink">
         <span class="stat-icon">📚</span>
         <div class="stat-content">
-           <span class="stat-label">课程/词汇</span>
+           <span class="stat-label">总课程/总单词</span>
            <span class="stat-value">{{ totalCourses }}课/{{ totalWords }}词</span>
         </div>
       </div>
       <div class="stat-box box-green">
-        <span class="stat-icon">🐱</span>
+        <span class="stat-icon">🔤</span>
         <div class="stat-content">
-           <span class="stat-label">本猫进度</span>
-           <span class="stat-value">{{ progressStr }}</span>
+           <span class="stat-label">本课单词</span>
+           <span class="stat-value">{{ currentLessonProgressStr }}</span>
         </div>
       </div>
     </header>
@@ -54,7 +54,7 @@
                '--size': p.size + 'px'
              }"></div>
 
-        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson || currentLessonData.unit }} 关</div>
+        <div class="lesson-badge clickable-badge" @click="openModal">📂 第 {{ currentLessonData.lesson || currentLessonData.unit }} 课</div>
         <button class="auto-sound-badge"
                 :class="{'auto-sound-badge-active': autoPlayEnabled}"
                 @click="toggleAutoPlay">
@@ -137,7 +137,7 @@
         <button class="cute-btn btn-secondary fab-top-btn" @click="scrollModalToTop">⇧</button>
 
         <div class="modal-header">
-          <h3>🎊 挑选你想学的关卡吧 🎊</h3>
+          <h3>🎊 挑选你想学的课程吧 🎊</h3>
           <button class="cute-btn btn-danger close-btn" @click="showModal = false">✖</button>
         </div>
         <div class="modal-list">
@@ -211,9 +211,9 @@
 
           <div class="help-item">
             <div class="demo-btn-wrap">
-              <span class="lesson-badge demo-static-badge" style="transform: rotate(-3deg) !important;">📂 第 X 关</span>
+              <span class="lesson-badge demo-static-badge" style="transform: rotate(-3deg) !important;">📂 第 X 课</span>
             </div>
-            <p class="help-desc">想要挑战其他关卡？点击此标签即可打开关卡列表，自由选择你要学习的内容。</p>
+            <p class="help-desc">想要挑战其他课程？点击此标签即可打开课程列表，自由选择你要学习的内容。</p>
           </div>
 
           <div class="help-item">
@@ -447,21 +447,15 @@ watch([currentLessonIdx, currentWordIdx], async () => {
 const totalCourses = computed(() => currentData.value.length)
 const totalWords = computed(() => currentData.value.reduce((acc, curr) => acc + curr.words.length, 0))
 
-// 计算当前到底学习了多少词，以估算总进度
-const calculateProgressWords = () => {
-  let count = 0
-  for (let i = 0; i < currentLessonIdx.value; i++) {
-    count += currentData.value[i].words.length
-  }
-  count += currentWordIdx.value + 1
-  return count
-}
-const progressStr = computed(() => `${currentLessonIdx.value + 1}课/${calculateProgressWords()}词`)
-
 // 课时与单词数据
 const currentLessonData = computed(() => currentData.value[currentLessonIdx.value] || { name: '', words: [] })
 const validWordList = computed(() => currentLessonData.value.words)
 const currentWordData = computed(() => validWordList.value[currentWordIdx.value] || null)
+const currentLessonProgressStr = computed(() => {
+  const total = validWordList.value.length
+  const read = total > 0 ? Math.min(currentWordIdx.value + 1, total) : 0
+  return `${read}/${total}`
+})
 
 // 全局边界检测：是否为整本教材的第一个/最后一个单词
 const isFirstWordGlobal = computed(() => currentLessonIdx.value === 0 && currentWordIdx.value === 0)
@@ -906,7 +900,9 @@ html, body {
   padding: 10px 8px;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  text-align: center;
 }
 .box-yellow { background-color: #FEE685; }
 .box-pink { background-color: #FFD6A7; }
@@ -914,7 +910,7 @@ html, body {
 .box-green { background-color: #96F7E4; }
 
 .stat-icon { font-size: 24px; }
-.stat-content { display: flex; flex-direction: column; white-space: nowrap; }
+.stat-content { display: flex; flex-direction: column; align-items: center; white-space: nowrap; }
 .stat-label { font-size: 13px; color: #3d405b; font-weight: 900; }
 .stat-value { font-size: 17px; font-weight: 900; color: #3B415A }
 
@@ -995,6 +991,10 @@ html, body {
   padding: 5px 25px; transform: rotate(-5deg);
   border: 4px solid #3d405b; box-shadow: 3px 3px 0 #3d405b;
   border-radius: 8px; z-index: 12; font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .clickable-badge {
   cursor: pointer;
@@ -1022,6 +1022,10 @@ html, body {
   z-index: 12;
   cursor: pointer;
   transition: all 0.1s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 .auto-sound-badge:active {
   transform: rotate(5deg) translateY(3px);
