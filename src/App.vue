@@ -77,7 +77,9 @@
             <div class="word-info-animated" :key="`${currentLessonIdx}-${currentWordIdx}`">
               <h1 class="word-text" :style="getWordStyle(currentWordData.word)">{{ currentWordData.word }}</h1>
               <p class="word-phonetics">{{ currentWordData.phoneticSymbol }}</p>
-              <div class="word-pos-tag">{{ getPos(currentWordData.partSpeech) }}</div>
+              <div class="word-pos-tag" :style="getPosTagStyle(currentWordData.partSpeech)">
+                {{ getPos(currentWordData.partSpeech) }}
+              </div>
             </div>
           </Transition>
 
@@ -516,6 +518,31 @@ const posMap = {
 const getPos = (p) => {
   if (!p) return ''
   return posMap[p] ? `${p} （${posMap[p]}）` : p
+}
+
+const getPosTagStyle = (p) => {
+  const label = getPos(p)
+  const len = label.length
+
+  if (len >= 22) {
+    return {
+      fontSize: '11px',
+      padding: '7px 12px',
+      maxWidth: '100%'
+    }
+  }
+
+  if (len >= 16) {
+    return {
+      fontSize: '12px',
+      padding: '7px 14px',
+      maxWidth: '100%'
+    }
+  }
+
+  return {
+    maxWidth: '100%'
+  }
 }
 
 // 动态计算单词的适应性字体大小
@@ -1033,8 +1060,15 @@ html, body {
   padding: 6px 16px; border-radius: 12px; font-weight: 900;
   border: 3px solid #00b894; font-size: 14px;
   color: #005F89;
-  /* 防止过长（如物主代词英文）折行导致高度暴增 */
-  white-space: nowrap; max-width: 95%; overflow: hidden; text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  line-height: 1.35;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
 }
 .mt-15 { margin-top: 25px; width: 80%; font-size: 18px!important; position: relative; z-index: 10; }
 
