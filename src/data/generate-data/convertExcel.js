@@ -102,7 +102,7 @@ export function processExcelFiles(inputDir, outputDir) {
 }
 
 // 自动执行转换方法 (读取 src/data 目录下的 xlsx，然后输出为同名的 js 文件)
-const targetDir = path.resolve('src/data');
+const targetDir = path.resolve('src/data/generate-data');
 
 try {
     processExcelFiles(targetDir);
